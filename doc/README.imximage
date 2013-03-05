@@ -211,5 +211,9 @@ by the processor.
 Now remove your card from the PC and go to the target. If evrything went right,
 the u-boot prompt should come after power on.
 
+Booting over USB
+--------------------------------
+See README.imxboot
+
 ------------------------------------------------
 Author: Stefano babic <sbabic@denx.de>

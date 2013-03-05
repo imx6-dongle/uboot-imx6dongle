@@ -74,6 +74,7 @@ BIN_FILES-$(CONFIG_MX28) += mxsboot$(SFX)
 BIN_FILES-$(CONFIG_NETCONSOLE) += ncb$(SFX)
 BIN_FILES-$(CONFIG_SHA1_CHECK_UB_IMG) += ubsha1$(SFX)
 BIN_FILES-$(CONFIG_KIRKWOOD) += kwboot$(SFX)
+BIN_FILES-$(CONFIG_MX6) += imxboot$(SFX)
 
 # Source files which exist outside the tools directory
 EXT_OBJ_FILES-$(CONFIG_BUILD_ENVCRC) += common/env_embedded.o
@@ -106,6 +107,7 @@ NOPED_OBJ_FILES-y += os_support.o
 OBJ_FILES-$(CONFIG_SHA1_CHECK_UB_IMG) += ubsha1.o
 NOPED_OBJ_FILES-y += ublimage.o
 OBJ_FILES-$(CONFIG_KIRKWOOD) += kwboot.o
+OBJ_FILES-$(CONFIG_MX6) += imxboot.o
 
 # Don't build by default
 #ifeq ($(ARCH),ppc)
@@ -233,6 +235,10 @@ $(obj)mpc86x_clk$(SFX):	$(obj)mpc86x_clk.o
 
 $(obj)mxsboot$(SFX):	$(obj)mxsboot.o
 	$(HOSTCC) $(HOSTCFLAGS) $(HOSTLDFLAGS) -o $@ $^
+	$(HOSTSTRIP) $@
+
+$(obj)imxboot$(SFX):	$(obj)imxboot.o
+	$(HOSTCC) $(HOSTCFLAGS) $(HOSTLDFLAGS) -o $@ $^ `pkg-config --libs libusb-1.0`
 	$(HOSTSTRIP) $@
 
 $(obj)ncb$(SFX):	$(obj)ncb.o
