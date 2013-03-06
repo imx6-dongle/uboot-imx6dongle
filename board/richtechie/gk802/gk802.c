@@ -1,7 +1,6 @@
 /*
  * Copyright (C) 2012 Freescale Semiconductor, Inc.
- *
- * Author: Fabio Estevam <fabio.estevam@freescale.com>
+ * Copyright (C) 2013 James Laird <jhl@mafipulation.org>
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -133,5 +132,18 @@ int checkboard(void)
 {
     puts("Board: MX6Q-gk802\n");
 
+    return 0;
+}
+
+int misc_init_r(void) {
+    gpio_direction_input(IMX_GPIO_NR(3, 16));
+    if (!gpio_get_value(IMX_GPIO_NR(3, 16))) {
+        puts("RECOVERY SWITCH PRESSED\n");
+
+        setenv("bootdelay", "5");
+        setenv("recovery", "1");
+    } else {
+        setenv("recovery", "0");
+    }
     return 0;
 }

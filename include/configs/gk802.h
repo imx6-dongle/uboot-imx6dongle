@@ -1,7 +1,9 @@
 /*
  * Copyright (C) 2012 Freescale Semiconductor, Inc.
+ * Copyright (C) 2013 James Laird <jhl@mafipulation.org>
  *
- * Configuration settings for the Freescale i.MX6Q SabreSD board.
+ * Configuration settings for the Freescale i.MX6Q-based GK802
+ * and HI802 (and related) family of HDMI "dongle" computers.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -20,7 +22,6 @@
 #define CONFIG_MACH_TYPE	3980
 #define CONFIG_MXC_UART_BASE	UART4_BASE
 #define CONFIG_CONSOLE_DEV		"ttymxc3"
-#define CONFIG_MMCROOT			"/dev/mmcblk0p1"
 #define PHYS_SDRAM_SIZE		(1u * 1024 * 1024 * 1024)
 
 
@@ -67,52 +68,33 @@
 #define CONFIG_CMD_BOOTZ
 #undef CONFIG_CMD_IMLS
 
-#define CONFIG_BOOTDELAY               3
+#define CONFIG_BOOTDELAY               0
 
 #define CONFIG_LOADADDR                        0x10800000
 // #define CONFIG_SYS_TEXT_BASE           0x17800000
 #define CONFIG_SYS_TEXT_BASE           0x27800000
 
 #define CONFIG_SYS_SKIP_ARM_RELOCATION
+#define CONFIG_MISC_INIT_R
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"script=boot.scr\0" \
-	"uimage=uImage\0" \
+	"uimage=/boot/uImage\0" \
 	"console=" CONFIG_CONSOLE_DEV "\0" \
 	"fdt_high=0xffffffff\0"	  \
 	"initrd_high=0xffffffff\0" \
-	"mmcdev=0\0" \
-	"mmcpart=1\0" \
-	"mmcroot=" CONFIG_MMCROOT " rootwait rw\0" \
-	"mmcargs=setenv bootargs console=${console},${baudrate} " \
-		"root=${mmcroot}\0" \
-	"loadbootscript=" \
-		"fatload mmc ${mmcdev}:${mmcpart} ${loadaddr} ${script};\0" \
-	"bootscript=echo Running bootscript from mmc ...; " \
-		"source\0" \
-	"loaduimage=fatload mmc ${mmcdev}:${mmcpart} ${loadaddr} ${uimage}\0" \
-		"mmcboot=echo Booting from mmc ...; " \
-		"run mmcargs; " \
-		"bootm\0" \
-	"netargs=setenv bootargs console=${console},${baudrate} " \
-		"root=/dev/nfs " \
-		"ip=dhcp nfsroot=${serverip}:${nfsroot},v3,tcp\0" \
-	"netboot=echo Booting from net ...; " \
-		"run netargs; " \
-		"dhcp ${uimage}; bootm\0" \
+    "boot_recovery=setenv bootsuffix _recovery; setenv mmcdev 1; run try_boot; setenv mmcdev 0; run try_boot; run boot_normal\0" \
+    "boot_normal=  setenv bootsuffix ''; setenv mmcdev 1; run try_boot; setenv mmcdev 0; run try_boot\0" \
+    "try_boot=if ext2load mmc ${mmcdev} ${loadaddr} /boot/ubootcmd${bootsuffix}; then source; fi;" \
+    "         if ext2load mmc ${mmcdev} ${loadaddr} /boot/uImage${bootsuffix}; then bootm; fi;\0"
 
-#define CONFIG_BOOTCOMMAND \
-	"mmc dev ${mmcdev};" \
-	"if mmc rescan ${mmcdev}; then " \
-		"if run loadbootscript; then " \
-		"run bootscript; " \
-		"else " \
-			"if run loaduimage; then " \
-				"run mmcboot; " \
-			"else run netboot; " \
-			"fi; " \
-		"fi; " \
-	"else run netboot; fi"
+
+
+#define CONFIG_BOOTCOMMAND  \
+    "if test ${recovery} -gt 0; then "\
+    "    run boot_recovery;" \
+    "fi;" \
+    "run boot_normal; run boot_recovery"
 
 /* Miscellaneous configurable options */
 #define CONFIG_SYS_LONGHELP
