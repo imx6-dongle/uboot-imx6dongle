@@ -932,7 +932,14 @@ static void parse_putc(const char c)
 		CURSOR_SET;
 }
 
-void video_putc(const char c)
+void video_putc(const char c) {
+    video_putc_cached(c);
+
+	if (cfb_do_flush_cache)
+		flush_cache((ulong)CONSOLE_ROW_FIRST, CONSOLE_SIZE);
+}
+
+void video_putc_cached(const char c)
 {
 #ifdef CONFIG_CFB_CONSOLE_ANSI
 	int i;
@@ -1149,7 +1156,10 @@ void video_puts(const char *s)
 	int count = strlen(s);
 
 	while (count--)
-		video_putc(*s++);
+		video_putc_cached(*s++);
+
+	if (cfb_do_flush_cache)
+		flush_cache((ulong)CONSOLE_ROW_FIRST, CONSOLE_SIZE);
 }
 
 /*
@@ -2073,6 +2083,8 @@ static void *video_logo(void)
 	}
 #endif
 
+    if (cfb_do_flush_cache)
+        flush_cache((ulong)video_fb_address, video_logo_height * VIDEO_LINE_LEN);
 	return (video_fb_address + video_logo_height * VIDEO_LINE_LEN);
 }
 #endif
