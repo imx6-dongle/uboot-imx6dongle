@@ -235,7 +235,7 @@ $(obj)mxsboot$(SFX):	$(obj)mxsboot.o
 	$(HOSTSTRIP) $@
 
 $(obj)imxboot$(SFX):	$(obj)imxboot.o
-	$(HOSTCC) $(HOSTCFLAGS) $(HOSTLDFLAGS) -o $@ `pkg-config --libs libusb-1.0` $^
+	$(HOSTCC) $(HOSTCFLAGS) $(HOSTLDFLAGS) -o $@ $^ `pkg-config --libs libusb-1.0`
 	$(HOSTSTRIP) $@
 
 $(obj)ncb$(SFX):	$(obj)ncb.o
