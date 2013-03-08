@@ -27,8 +27,10 @@
 #include <asm/imx-common/iomux-v3.h>
 #include <mmc.h>
 #include <fsl_esdhc.h>
-#include <miiphy.h>
-#include <netdev.h>
+#include <linux/fb.h>
+#include <ipu_pixfmt.h>
+#include <asm/arch/crm_regs.h>
+#include <asm/arch/mxc_hdmi.h>
 DECLARE_GLOBAL_DATA_PTR;
 
 #define UART_PAD_CTRL  (PAD_CTL_PKE | PAD_CTL_PUE |            \
@@ -108,6 +110,171 @@ int board_mmc_init(bd_t *bis)
 }
 #endif
 
+#if defined(CONFIG_VIDEO_IPUV3)
+
+struct display_info_t {
+	int	bus;
+	int	addr;
+	int	pixfmt;
+	int	(*detect)(struct display_info_t const *dev);
+	void	(*enable)(struct display_info_t const *dev);
+	struct	fb_videomode mode;
+};
+
+static int detect_hdmi(struct display_info_t const *dev)
+{
+	return __raw_readb(HDMI_ARB_BASE_ADDR+HDMI_PHY_STAT0) & HDMI_PHY_HPD;
+}
+
+static void enable_hdmi(struct display_info_t const *dev)
+{
+	u8 reg;
+	printf("%s: setup HDMI monitor\n", __func__);
+	reg = __raw_readb(
+			HDMI_ARB_BASE_ADDR
+			+HDMI_PHY_CONF0);
+	reg |= HDMI_PHY_CONF0_PDZ_MASK;
+	__raw_writeb(reg,
+		     HDMI_ARB_BASE_ADDR
+			+HDMI_PHY_CONF0);
+	udelay(3000);
+	reg |= HDMI_PHY_CONF0_ENTMDS_MASK;
+	__raw_writeb(reg,
+		     HDMI_ARB_BASE_ADDR
+			+HDMI_PHY_CONF0);
+	udelay(3000);
+	reg |= HDMI_PHY_CONF0_GEN2_TXPWRON_MASK;
+	__raw_writeb(reg,
+		     HDMI_ARB_BASE_ADDR
+			+HDMI_PHY_CONF0);
+	__raw_writeb(HDMI_MC_PHYRSTZ_ASSERT,
+		     HDMI_ARB_BASE_ADDR+HDMI_MC_PHYRSTZ);
+}
+
+static struct display_info_t display = {
+	.bus	= -1,
+	.addr	= 0,
+	.pixfmt	= IPU_PIX_FMT_RGB24,
+	.detect	= detect_hdmi,
+	.enable	= enable_hdmi,
+	.mode	= {
+		.name           = "HDMI",
+		.refresh        = 60,
+		.xres           = 1024,
+		.yres           = 768,
+		.pixclock       = 15385,
+		.left_margin    = 220,
+		.right_margin   = 40,
+		.upper_margin   = 21,
+		.lower_margin   = 7,
+		.hsync_len      = 60,
+		.vsync_len      = 10,
+		.sync           = FB_SYNC_EXT,
+		.vmode          = FB_VMODE_NONINTERLACED
+} };
+
+int board_video_skip(void)
+{
+	int ret;
+
+    int xres, yres, refresh;
+    xres = getenv_ulong("hdmi_xres", 10, CONFIG_HDMI_XRES);
+    yres = getenv_ulong("hdmi_yres", 10, CONFIG_HDMI_YRES);
+    refresh = getenv_ulong("hdmi_refresh", 10, CONFIG_HDMI_REFRESH);
+    printf("got mode %dx%d@%d\n", xres, yres, refresh);
+    
+    display.mode.hsync_len = xres/12;
+    display.mode.left_margin = (xres + display.mode.right_margin + display.mode.hsync_len)/4 + 10;
+    long active_y = display.mode.upper_margin + yres +
+                    display.mode.lower_margin + display.mode.vsync_len;
+    long active_x = display.mode.left_margin + xres +
+                    display.mode.right_margin + display.mode.hsync_len;
+    long long pixclock_calc = 1e12;
+
+    pixclock_calc /= active_x * active_y * refresh;
+    printf("%d active pixels, pixel clock %lld ps\n", active_x*active_y, pixclock_calc);
+
+    if (pixclock_calc > 1e9 || pixclock_calc < 1e3) {
+        puts("invalid video mode selected, going to default mode");
+    } else {
+        display.mode.xres = xres;
+        display.mode.yres = yres;
+        display.mode.refresh = refresh;
+        display.mode.pixclock = pixclock_calc;
+    }
+
+    ret = ipuv3_fb_init(&display.mode, 0,
+                display.pixfmt);
+    if (!ret) {
+        display.enable(&display);
+        printf("Display: %s (%ux%u)\n",
+               display.mode.name,
+               display.mode.xres,
+               display.mode.yres);
+    } else {
+        printf("display %s cannot be configured: %d\n",
+               display.mode.name, ret);
+        ret = -EINVAL;
+    }
+	return (0 != ret);
+}
+
+static void setup_display(void)
+{
+	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
+	struct anatop_regs *anatop = (struct anatop_regs *)ANATOP_BASE_ADDR;
+	struct iomuxc *iomux = (struct iomuxc *)IOMUXC_BASE_ADDR;
+
+	int reg;
+
+	/* Turn on LDB0,IPU,IPU DI0 clocks */
+	reg = __raw_readl(&mxc_ccm->CCGR3);
+	reg |=   MXC_CCM_CCGR3_IPU1_IPU_DI0_OFFSET
+		|MXC_CCM_CCGR3_LDB_DI0_MASK;
+	writel(reg, &mxc_ccm->CCGR3);
+
+	/* Turn on HDMI PHY clock */
+	reg = __raw_readl(&mxc_ccm->CCGR2);
+	reg |=  MXC_CCM_CCGR2_HDMI_TX_IAHBCLK_MASK
+	       |MXC_CCM_CCGR2_HDMI_TX_ISFRCLK_MASK;
+	writel(reg, &mxc_ccm->CCGR2);
+
+	/* clear HDMI PHY reset */
+	__raw_writeb(HDMI_MC_PHYRSTZ_DEASSERT,
+		     HDMI_ARB_BASE_ADDR+HDMI_MC_PHYRSTZ);
+
+	/* set PFD1_FRAC to 0x13 == 455 MHz (480*18)/0x13 */
+	writel(ANATOP_PFD_480_PFD1_FRAC_MASK, &anatop->pfd_480_clr);
+	writel(0x13<<ANATOP_PFD_480_PFD1_FRAC_SHIFT, &anatop->pfd_480_set);
+
+	/* set LDB0, LDB1 clk select to 011/011 */
+	reg = readl(&mxc_ccm->cs2cdr);
+	reg &= ~(MXC_CCM_CS2CDR_LDB_DI0_CLK_SEL_MASK
+		 |MXC_CCM_CS2CDR_LDB_DI1_CLK_SEL_MASK);
+	reg |= (3<<MXC_CCM_CS2CDR_LDB_DI0_CLK_SEL_OFFSET)
+	      |(3<<MXC_CCM_CS2CDR_LDB_DI1_CLK_SEL_OFFSET);
+	writel(reg, &mxc_ccm->cs2cdr);
+
+	reg = readl(&mxc_ccm->cscmr2);
+	reg |= MXC_CCM_CSCMR2_LDB_DI0_IPU_DIV;
+	writel(reg, &mxc_ccm->cscmr2);
+    
+	reg = readl(&mxc_ccm->chsccdr);
+	reg &= ~(MXC_CCM_CHSCCDR_IPU1_DI0_PRE_CLK_SEL_MASK
+		|MXC_CCM_CHSCCDR_IPU1_DI0_PODF_MASK
+		|MXC_CCM_CHSCCDR_IPU1_DI0_CLK_SEL_MASK);
+	reg |= (CHSCCDR_CLK_SEL_LDB_DI0
+		<<MXC_CCM_CHSCCDR_IPU1_DI0_CLK_SEL_OFFSET)
+	      |(CHSCCDR_PODF_DIVIDE_BY_3
+		<<MXC_CCM_CHSCCDR_IPU1_DI0_PODF_OFFSET)
+	      |(CHSCCDR_IPU_PRE_CLK_540M_PFD
+		<<MXC_CCM_CHSCCDR_IPU1_DI0_PRE_CLK_SEL_OFFSET);
+	writel(reg, &mxc_ccm->chsccdr);
+
+}
+#endif
+
+
 u32 get_board_rev(void)
 {
     return 0;
@@ -117,6 +284,9 @@ int board_early_init_f(void)
 {
     setup_iomux_uart();
 
+#if defined(CONFIG_VIDEO_IPUV3)
+	setup_display();
+#endif
     return 0;
 }
 
@@ -145,5 +315,9 @@ int misc_init_r(void) {
     } else {
         setenv("recovery", "0");
     }
+
+    setenv("stdout", "serial,vga");
+    setenv("stderr", "serial,vga");
+
     return 0;
 }
