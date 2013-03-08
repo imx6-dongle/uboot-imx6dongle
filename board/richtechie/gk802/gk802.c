@@ -65,13 +65,14 @@ iomux_v3_cfg_t const usdhc3_pads[] = {
     MX6Q_PAD_SD3_DAT2__USDHC3_DAT2 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
     MX6Q_PAD_SD3_DAT3__USDHC3_DAT3 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
 };
-iomux_v3_cfg_t const usdhc2_pads[] = {
-    MX6Q_PAD_SD2_CLK__USDHC2_CLK    | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-    MX6Q_PAD_SD2_CMD__USDHC2_CMD    | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-    MX6Q_PAD_SD2_DAT0__USDHC2_DAT0  | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-    MX6Q_PAD_SD2_DAT1__USDHC2_DAT1  | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-    MX6Q_PAD_SD2_DAT2__USDHC2_DAT2  | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-    MX6Q_PAD_SD2_DAT3__USDHC2_DAT3  | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+
+iomux_v3_cfg_t const usdhc4_pads[] = {
+    MX6Q_PAD_SD4_CLK__USDHC4_CLK    | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+    MX6Q_PAD_SD4_CMD__USDHC4_CMD    | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+    MX6Q_PAD_SD4_DAT0__USDHC4_DAT0  | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+    MX6Q_PAD_SD4_DAT1__USDHC4_DAT1  | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+    MX6Q_PAD_SD4_DAT2__USDHC4_DAT2  | MUX_PAD_CTRL(USDHC_PAD_CTRL),
+    MX6Q_PAD_SD4_DAT3__USDHC4_DAT3  | MUX_PAD_CTRL(USDHC_PAD_CTRL),
 };
 
 static void setup_iomux_uart(void)
@@ -80,33 +81,33 @@ static void setup_iomux_uart(void)
 }
 
 #ifdef CONFIG_FSL_ESDHC
-struct fsl_esdhc_cfg usdhc_cfg[2] = {
+struct fsl_esdhc_cfg usdhc_cfg[4] = {
+    {USDHC4_BASE_ADDR},
     {USDHC3_BASE_ADDR},
-    {USDHC2_BASE_ADDR},
 };
 
 int board_mmc_getcd(struct mmc *mmc)
 {
     struct fsl_esdhc_cfg *cfg = (struct fsl_esdhc_cfg *)mmc->priv;
-    if (cfg->esdhc_base == USDHC2_BASE_ADDR) {
-        return 1;   // we booted off that one probably
-    } else {
+    if (cfg->esdhc_base == USDHC3_BASE_ADDR) {
         gpio_direction_input(IMX_GPIO_NR(6, 11));
         return !gpio_get_value(IMX_GPIO_NR(6, 11));
+    } else {
+        return 1;   // we booted off that one probably
     }
 }
 
 int board_mmc_init(bd_t *bis)
 {
-    int ret;
+    int ret = 0;
     imx_iomux_v3_setup_multiple_pads(usdhc3_pads, ARRAY_SIZE(usdhc3_pads));
-    imx_iomux_v3_setup_multiple_pads(usdhc2_pads, ARRAY_SIZE(usdhc2_pads));
+    imx_iomux_v3_setup_multiple_pads(usdhc4_pads, ARRAY_SIZE(usdhc4_pads));
 
-    usdhc_cfg[0].sdhc_clk = mxc_get_clock(MXC_ESDHC3_CLK);
-    usdhc_cfg[1].sdhc_clk = mxc_get_clock(MXC_ESDHC2_CLK);
+    usdhc_cfg[0].sdhc_clk = mxc_get_clock(MXC_ESDHC4_CLK);
+    usdhc_cfg[1].sdhc_clk = mxc_get_clock(MXC_ESDHC3_CLK);
 
-    ret = fsl_esdhc_initialize(bis, &usdhc_cfg[1]);
     ret |= fsl_esdhc_initialize(bis, &usdhc_cfg[0]);
+    ret |= fsl_esdhc_initialize(bis, &usdhc_cfg[1]);
     return ret;
 }
 #endif
