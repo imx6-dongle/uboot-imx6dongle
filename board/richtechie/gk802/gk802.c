@@ -323,3 +323,10 @@ int misc_init_r(void) {
 
     return 0;
 }
+
+#ifdef CONFIG_USB_EHCI_MX6
+int board_ehci_hcd_init(int port)
+{
+	return 0;
+}
+#endif
