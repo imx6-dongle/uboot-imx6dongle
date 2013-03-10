@@ -279,7 +279,7 @@ static void setup_display(void)
 
 u32 get_board_rev(void)
 {
-    return 0;
+    return 0x63011;
 }
 
 int board_early_init_f(void)
