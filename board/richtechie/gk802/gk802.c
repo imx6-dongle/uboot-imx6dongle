@@ -282,10 +282,8 @@ u32 get_board_rev(void)
     return 0x63011;
 }
 
-int board_early_init_f(void)
+int board_recovery_init_f(void)
 {
-    setup_iomux_uart();
-
     gpio_direction_input(IMX_GPIO_NR(3, 16));
     if (!gpio_get_value(IMX_GPIO_NR(3, 16))) {
         puts("RECOVERY SWITCH PRESSED\n");
@@ -295,18 +293,23 @@ int board_early_init_f(void)
         setenv("recovery", "1");
 
         /* these have to be set before setup_display() */
-        setenv("hdmi_xres", 640);
-        setenv("hdmi_yres", 480);
-        setenv("hdmi_refresh", 60);
-
-        setenv("stdin", "serial,usbkbd");
-        setenv("stdout", "serial,vga");
+        setenv("hdmi_xres", "640");
+        setenv("hdmi_yres", "480");
+        setenv("hdmi_refresh", "60");
 
         /* prevent a misconfigured preboot from breaking recovery */
         setenv("preboot", "usb start");
     } else {
         setenv("recovery", "0");
     }
+
+    return 0;
+}
+
+
+int board_early_init_f(void)
+{
+    setup_iomux_uart();
 
 #if defined(CONFIG_VIDEO_IPUV3)
 	setup_display();
