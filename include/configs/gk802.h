@@ -98,6 +98,7 @@
 #undef CONFIG_CMD_IMLS
 
 #define CONFIG_BOOTDELAY               0
+#define CONFIG_PREBOOT
 
 #define CONFIG_LOADADDR                        0x10800000
 // #define CONFIG_SYS_TEXT_BASE           0x17800000
