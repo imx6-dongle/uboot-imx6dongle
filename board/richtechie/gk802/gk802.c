@@ -286,6 +286,28 @@ int board_early_init_f(void)
 {
     setup_iomux_uart();
 
+    gpio_direction_input(IMX_GPIO_NR(3, 16));
+    if (!gpio_get_value(IMX_GPIO_NR(3, 16))) {
+        puts("RECOVERY SWITCH PRESSED\n");
+        puts("trying to assume sensible defaults\n");
+
+        setenv("bootdelay", "30");
+        setenv("recovery", "1");
+
+        /* these have to be set before setup_display() */
+        setenv("hdmi_xres", 640);
+        setenv("hdmi_yres", 480);
+        setenv("hdmi_refresh", 60);
+
+        setenv("stdin", "serial,usbkbd");
+        setenv("stdout", "serial,vga");
+
+        /* prevent a misconfigured preboot from breaking recovery */
+        setenv("preboot", "usb start");
+    } else {
+        setenv("recovery", "0");
+    }
+
 #if defined(CONFIG_VIDEO_IPUV3)
 	setup_display();
 #endif
@@ -303,23 +325,6 @@ int board_init(void)
 int checkboard(void)
 {
     puts("Board: MX6Q-gk802\n");
-
-    return 0;
-}
-
-int misc_init_r(void) {
-    gpio_direction_input(IMX_GPIO_NR(3, 16));
-    if (!gpio_get_value(IMX_GPIO_NR(3, 16))) {
-        puts("RECOVERY SWITCH PRESSED\n");
-
-        setenv("bootdelay", "5");
-        setenv("recovery", "1");
-    } else {
-        setenv("recovery", "0");
-    }
-
-    setenv("stdout", "serial,vga");
-    setenv("stderr", "serial,vga");
 
     return 0;
 }

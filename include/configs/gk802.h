@@ -105,7 +105,6 @@
 #define CONFIG_SYS_TEXT_BASE           0x27800000
 
 #define CONFIG_SYS_SKIP_ARM_RELOCATION
-#define CONFIG_MISC_INIT_R
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"script=boot.scr\0" \
