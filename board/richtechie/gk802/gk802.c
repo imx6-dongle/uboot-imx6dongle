@@ -322,6 +322,11 @@ int board_init(void)
     /* address of boot parameters */
     gd->bd->bi_boot_params = PHYS_SDRAM + 0x100;
 
+    /* config Reset Controller (SRC) to disable warm resets (ie uboot
+       reset command should go 100% back to strapped bootloader)
+    */
+    clrbits_le32(SRC_BASE_ADDR, 1);
+
     return 0;
 }
 
