@@ -34,3 +34,20 @@ i.MX6 processors, as strapped in the GK802, will fall back into USB boot mode if
 Use the imxboot tool in the tools directory:
 
     $ sudo tools/imxboot u-boot.imx
+
+
+Booting Kernel/Initrd over USB
+-------
+
+imxboot can also load a kernel or initrd (or any data) from a file into device memory before launching uboot. This can be useful for kernel development.
+
+Usage is to add as pairs of file and load address to the command line, ie
+
+    tools/imxboot ./u-boot.imx ../linux-imx/arch/arm/boot/zImage 0x10008000
+
+As shown here, uboot command `bootz 0x10008000` will launch the kernel. You can type this on the console, put it in a ubootcmd file on the MMC, change include/configs/gk802.h, or just hack it into the bottom of include/config.h (where it will stay until you run `make gk802\_config` again.)
+
+    #undef CONFIG_BOOTCOMMAND
+    #define CONFIG_BOOTCOMMAND "bootz 0x10008000"
+
+(For kernel & initrd, just specify another file & address on the command line, and add the address to the bootz arguments.)

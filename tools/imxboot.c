@@ -162,6 +162,32 @@ void execute_writes(uint32_t *dcd, uint32_t nwrites) {
     }
 }
 
+// Read file into newly allocated memory, filesize_out is out pointer for file size
+uint8_t *read_file(const char *filename, int *filesize_out) {
+  FILE *in = fopen(filename, "rb");
+  if (!in) {
+    fprintf(stderr, "Failed to open file %s\n", filename);
+    exit(1);
+  }
+  
+  fseek(in, 0, SEEK_END);
+  int filesize = ftell(in);
+  fseek(in, 0, SEEK_SET);
+  
+  uint8_t *result = malloc(filesize);
+  
+  if (!result)
+    die("malloc failed");
+  
+  fread(result, filesize, 1, in);
+  fclose(in);
+
+  if(filesize_out)
+    *filesize_out = filesize;
+
+  return result;
+}
+
 
 int main(int argc, char **argv) {
     /* open device======================================= */
@@ -176,25 +202,11 @@ int main(int argc, char **argv) {
     printf("opened device; dev = 0x%llX\n", dev);
 
     /* open file ======================================== */
-    if (argc < 1)
-        die("usage: imxboot [filename.imx]");
+    if (argc < 2 || argc % 2 != 0)
+        die("usage: imxboot [filename.imx] [ [otherfile loadaddr] .. ]");
 
-    FILE *in = fopen(argv[1], "rb");
-    if (!in)
-        die("can't open input file");
-
-    fseek(in, 0, SEEK_END);
-    int filesize = ftell(in);
-    fseek(in, 0, SEEK_SET);
-
-    uint8_t *file = malloc(filesize);
-
-    if (!file)
-        die("malloc failed");
-
-    fread(file, filesize, 1, in);
-    fclose(in);
-
+    int filesize;
+    uint8_t *file = read_file(argv[1], &filesize);
 
     /* read the IVT ===================================== */
     if (TLV_TAG(file) != 0xd1)
@@ -244,7 +256,7 @@ int main(int argc, char **argv) {
         dcd_ptr += TLV_LEN(dcd_ptr)/4;
     }
 
-    /* send the file and boot it ======================== */
+    /* send the file ======================== */
     boot_len -= 0x400;  // includes the 0x400 at start of SD card
     if (boot_len > filesize) {
         fprintf(stderr, "warning: boot length is 0x%X, filesize is only 0x%X\n", boot_len, filesize);
@@ -252,6 +264,24 @@ int main(int argc, char **argv) {
     }
     sdp_write_file(self, file, boot_len);
 
+
+    /* Load any additional files to the requested memory offsets
+       (allows for preloading of kernel, initrd, etc. over USB) */
+    int a;
+    for(a = 2; a < argc; a+=2) {
+      file = read_file(argv[a], &filesize);
+
+      char *endptr;
+      uint32_t offset = strtoul(argv[a+1], &endptr, 0);
+      if(endptr != 0 && !endptr != 0) {
+        fprintf(stderr, "Failed to parse image offset '%s' for file %s\n", argv[a], argv[a+1]);
+        exit(1);
+      }
+      fprintf(stderr, "Loading %s (length 0x%x) to offset 0x%x...\n", argv[a], filesize, offset);
+      sdp_write_file(offset, file, filesize);
+    }
+
+    /* boot */
     sdp_jump(self);
 
     return 0;
