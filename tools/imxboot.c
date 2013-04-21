@@ -273,8 +273,8 @@ int main(int argc, char **argv) {
 
       char *endptr;
       uint32_t offset = strtoul(argv[a+1], &endptr, 0);
-      if(endptr != 0 && !endptr != 0) {
-        fprintf(stderr, "Failed to parse image offset '%s' for file %s\n", argv[a], argv[a+1]);
+      if(endptr != 0 && *endptr != 0) {
+        fprintf(stderr, "Failed to parse image offset '%s' for file %s\n", argv[a+1], argv[a]);
         exit(1);
       }
       fprintf(stderr, "Loading %s (length 0x%x) to offset 0x%x...\n", argv[a], filesize, offset);
