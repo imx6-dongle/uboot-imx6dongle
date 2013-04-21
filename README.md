@@ -13,8 +13,8 @@ Building
 
 You need an ARM cross compiler. For example, if you have `arm-eabi-gcc`:
 
-    $ make gk802\_config CROSS\_COMPILE=arm-eabi-
-    $ make ARCH=arm CROSS\_COMPILE=arm-eabi-
+    $ make gk802_config CROSS_COMPILE=arm-eabi-
+    $ make ARCH=arm CROSS_COMPILE=arm-eabi-
 
 This will result in u-boot.imx, which is the imx6 boot image. You will need pkg-config and libusb-1.0 installed to build the USB booting tool.
 
@@ -45,7 +45,7 @@ Usage is to add as pairs of file and load address to the command line, ie
 
     tools/imxboot ./u-boot.imx ../linux-imx/arch/arm/boot/zImage 0x10008000
 
-As shown here, uboot command `bootz 0x10008000` will launch the kernel. You can type this on the console, put it in a ubootcmd file on the MMC, change include/configs/gk802.h, or just hack it into the bottom of include/config.h (where it will stay until you run `make gk802\_config` again.)
+As shown here, uboot command `bootz 0x10008000` will launch the kernel. You can type this on the console, put it in a ubootcmd file on the MMC, change include/configs/gk802.h, or just hack it into the bottom of include/config.h (where it will stay until you run `make gk802_config` again.)
 
     #undef CONFIG_BOOTCOMMAND
     #define CONFIG_BOOTCOMMAND "bootz 0x10008000"
