@@ -98,7 +98,7 @@
 #define CONFIG_CMD_BOOTZ
 #undef CONFIG_CMD_IMLS
 
-#define CONFIG_BOOTDELAY               0
+#define CONFIG_BOOTDELAY               3
 #define CONFIG_PREBOOT
 
 #define CONFIG_LOADADDR                        0x10800000
