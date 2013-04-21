@@ -13,7 +13,7 @@ Building
 
 You need an ARM cross compiler. For example, if you have `arm-eabi-gcc`:
 
-    $ make gk802\_config
+    $ make gk802\_config CROSS\_COMPILE=arm-eabi-
     $ make ARCH=arm CROSS\_COMPILE=arm-eabi-
 
 This will result in u-boot.imx, which is the imx6 boot image. You will need pkg-config and libusb-1.0 installed to build the USB booting tool.
