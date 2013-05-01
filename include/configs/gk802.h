@@ -115,10 +115,9 @@
 	"initrd_high=0xffffffff\0" \
     "boot_recovery=setenv bootsuffix _recovery; setenv mmcdev 1; run try_boot; setenv mmcdev 0; run try_boot; run boot_normal\0" \
     "boot_normal=  setenv bootsuffix ''; setenv mmcdev 1; run try_boot; setenv mmcdev 0; run try_boot\0" \
-    "try_boot=if ext2load mmc ${mmcdev} ${loadaddr} /boot/ubootcmd${bootsuffix}; then source; fi;" \
-    "         if ext2load mmc ${mmcdev} ${loadaddr} /boot/uImage${bootsuffix}; then bootm; fi;\0"
-
-
+    "try_path=if ext2load mmc ${mmcdev} ${loadaddr} ${path}/ubootcmd${bootsuffix}; then source; fi;" \
+    "         if ext2load mmc ${mmcdev} ${loadaddr} ${path}/uImage${bootsuffix}; then bootm; fi;\0" \
+    "try_boot=setenv path /boot; run try_path; setenv path ''; run try_path;\0"
 
 #define CONFIG_BOOTCOMMAND  \
     "if test ${recovery} -gt 0; then "\
