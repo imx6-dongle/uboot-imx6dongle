@@ -113,12 +113,14 @@
 	"console=" CONFIG_CONSOLE_DEV "\0" \
 	"fdt_high=0xffffffff\0"	  \
 	"initrd_high=0xffffffff\0" \
-    "boot_recovery=setenv bootsuffix _recovery; setenv mmcdev 1; run try_boot; setenv mmcdev 0; run try_boot; run boot_normal\0" \
-    "boot_normal=  setenv bootsuffix ''; setenv mmcdev 1; run try_boot; setenv mmcdev 0; run try_boot\0" \
-    "try_boot=if ext2load mmc ${mmcdev} ${loadaddr} /boot/ubootcmd${bootsuffix}; then source; fi;" \
-    "         if ext2load mmc ${mmcdev} ${loadaddr} /boot/uImage${bootsuffix}; then bootm; fi;\0"
-
-
+    "boot_recovery=setenv bootsuffix _recovery; run try_devices; run boot_normal;\0" \
+    "boot_normal=  setenv bootsuffix ''; run try_devices;\0" \
+    "try_path=if ext2load ${dtype} ${dev} ${loadaddr} ${path}/ubootcmd${bootsuffix}; then source; fi;" \
+    "         if ext2load ${dtype} ${dev} ${loadaddr} ${path}/uImage${bootsuffix}; then bootm; fi;\0" \
+    "try_boot=setenv path /boot; run try_path; setenv path ''; run try_path;\0" \
+    "try_mmc=setenv dtype mmc; setenv dev 1; run try_boot; setenv dev 0; run try_boot;\0" \
+    "try_usb=usb start; setenv dtype usb; setenv dev 0; run try_boot; setenv dev 1; run try_boot;\0" \
+    "try_devices=run try_mmc; run try_usb;\0"
 
 #define CONFIG_BOOTCOMMAND  \
     "if test ${recovery} -gt 0; then "\
@@ -133,7 +135,6 @@
 #define CONFIG_SYS_PROMPT              "U-Boot > "
 #define CONFIG_AUTO_COMPLETE
 #define CONFIG_SYS_CBSIZE              256
-
 /* Print Buffer Size */
 #define CONFIG_SYS_PBSIZE (CONFIG_SYS_CBSIZE + sizeof(CONFIG_SYS_PROMPT) + 16)
 #define CONFIG_SYS_MAXARGS             16
