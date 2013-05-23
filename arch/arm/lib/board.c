@@ -615,6 +615,10 @@ void board_init_r(gd_t *id, ulong dest_addr)
 	else
 		set_default_env(NULL);
 
+#if defined(CONFIG_BOARD_RECOVERY_INIT_F)
+    board_recovery_init_f();
+#endif
+
 #if defined(CONFIG_CMD_PCI) || defined(CONFIG_PCI)
 	arm_pci_init();
 #endif

@@ -1,0 +1,42 @@
+U-Boot for GK802 based on Freescale i.MX6
+
+This file contains information for the port of U-Boot to the GK802 HDMI
+dongle, designed by Richtechie.
+
+
+USB HARDWARE
+------------
+
+The GK802 has a USB A (host) port, and a micro B (device) port. These are
+wired together, such that only one can be used at a time. In order to use the
+host mode, it is necessary to ensure that the power supply does not connect to
+the USB D+/D- lines of the micro B port.
+Similarly, if booting the device via USB, nothing must be connected to the
+A port's data lines.
+
+BOOTING OPTIONS
+---------------
+
+U-Boot can be loaded over USB (see README.imxboot), or from the internal
+microSD card (see README.imximage).
+
+
+BOOT SCRIPTS
+------------
+
+If the recessed button on the device is held during boot, the 'recovery'
+environment variable will be equal to 1.
+
+The default bootcmd looks for a u-boot script named '/boot/boot.scr', and
+failing that, for a uImage-format kernel named '/boot/uImage'. This search is
+performed, in order, on the first partitions of:
+
+1. external SD
+2. internal SD
+3. USB storage devices
+
+An example boot script would be:
+
+    setenv bootargs console=${console},115200 root=/dev/mmcblk0p1 rootwait
+    load ${loaddev} ${loadaddr} /boot/uImage
+    bootm
