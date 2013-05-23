@@ -31,6 +31,7 @@
 #define USB_H3REGS_OFFSET	0x600
 #define USB_OTHERREGS_OFFSET	0x800
 
+#define USB_OTG_CTRL_OFFSET	0x00
 #define USB_H1_CTRL_OFFSET	0x04
 
 #define USBPHY_CTRL				0x00000030
@@ -43,6 +44,14 @@
 #define USBPHY_CTRL_CLKGATE			0x40000000
 #define USBPHY_CTRL_ENUTMILEVEL3		0x00008000
 #define USBPHY_CTRL_ENUTMILEVEL2		0x00004000
+
+#define ANADIG_USB1_CHRG_DETECT_EN_B       0x00100000
+#define ANADIG_USB1_CHRG_DETECT_CHK_CHRG_B 0x00080000
+
+#define ANADIG_USB1_PLL_480_CTRL_BYPASS 0x00010000
+#define ANADIG_USB1_PLL_480_CTRL_ENABLE 0x00002000
+#define ANADIG_USB1_PLL_480_CTRL_POWER 0x00001000
+#define ANADIG_USB1_PLL_480_CTRL_EN_USB_CLKS	0x00000040
 
 #define ANADIG_USB2_CHRG_DETECT_EN_B		0x00100000
 #define ANADIG_USB2_CHRG_DETECT_CHK_CHRG_B	0x00080000
@@ -61,45 +70,54 @@
 #define UCMD_RUN_STOP           (1 << 0) /* controller run/stop */
 #define UCMD_RESET		(1 << 1) /* controller reset */
 
-static void usbh1_internal_phy_clock_gate(int on)
+static void usb_internal_phy_clock_gate(int port, int on)
 {
-	void __iomem *phy_reg = (void __iomem *)USB_PHY1_BASE_ADDR;
+	void __iomem *phy_reg =
+        (void __iomem *)(port ? USB_PHY1_BASE_ADDR : USB_PHY0_BASE_ADDR);
 
 	phy_reg += on ? USBPHY_CTRL_CLR : USBPHY_CTRL_SET;
 	__raw_writel(USBPHY_CTRL_CLKGATE, phy_reg);
 }
 
-static void usbh1_power_config(void)
+static void usb_power_config(int port)
 {
 	struct anatop_regs __iomem *anatop =
 		(struct anatop_regs __iomem *)ANATOP_BASE_ADDR;
-	/*
-	 * Some phy and power's special controls for host1
-	 * 1. The external charger detector needs to be disabled
-	 * or the signal at DP will be poor
-	 * 2. The PLL's power and output to usb for host 1
-	 * is totally controlled by IC, so the Software only needs
-	 * to enable them at initializtion.
-	 */
-	__raw_writel(ANADIG_USB2_CHRG_DETECT_EN_B |
-		     ANADIG_USB2_CHRG_DETECT_CHK_CHRG_B,
-		     &anatop->usb2_chrg_detect);
 
-	__raw_writel(ANADIG_USB2_PLL_480_CTRL_BYPASS,
-		     &anatop->usb2_pll_480_ctrl_clr);
+    if (port==0) {
+        __raw_writel(ANADIG_USB1_CHRG_DETECT_EN_B |
+                 ANADIG_USB1_CHRG_DETECT_CHK_CHRG_B,
+                 &anatop->usb1_chrg_detect);
 
-	__raw_writel(ANADIG_USB2_PLL_480_CTRL_ENABLE |
-		     ANADIG_USB2_PLL_480_CTRL_POWER |
-		     ANADIG_USB2_PLL_480_CTRL_EN_USB_CLKS,
-		     &anatop->usb2_pll_480_ctrl_set);
+        __raw_writel(ANADIG_USB1_PLL_480_CTRL_BYPASS,
+                 &anatop->usb1_pll_480_ctrl_clr);
+
+        __raw_writel(ANADIG_USB1_PLL_480_CTRL_ENABLE |
+                 ANADIG_USB1_PLL_480_CTRL_POWER |
+                 ANADIG_USB1_PLL_480_CTRL_EN_USB_CLKS,
+                 &anatop->usb1_pll_480_ctrl_set);
+    } else if (port==1) {
+        __raw_writel(ANADIG_USB2_CHRG_DETECT_EN_B |
+                 ANADIG_USB2_CHRG_DETECT_CHK_CHRG_B,
+                 &anatop->usb2_chrg_detect);
+
+        __raw_writel(ANADIG_USB2_PLL_480_CTRL_BYPASS,
+                 &anatop->usb2_pll_480_ctrl_clr);
+
+        __raw_writel(ANADIG_USB2_PLL_480_CTRL_ENABLE |
+                 ANADIG_USB2_PLL_480_CTRL_POWER |
+                 ANADIG_USB2_PLL_480_CTRL_EN_USB_CLKS,
+                 &anatop->usb2_pll_480_ctrl_set);
+    }
 }
 
-static int usbh1_phy_enable(void)
+static int usb_phy_enable(int port)
 {
-	void __iomem *phy_reg = (void __iomem *)USB_PHY1_BASE_ADDR;
+	void __iomem *phy_reg =
+        (void __iomem *)(port ? USB_PHY1_BASE_ADDR : USB_PHY0_BASE_ADDR);
 	void __iomem *phy_ctrl = (void __iomem *)(phy_reg + USBPHY_CTRL);
 	void __iomem *usb_cmd =	(void __iomem *)(USBOH3_USB_BASE_ADDR +
-						 USB_H1REGS_OFFSET +
+						 (port ? USB_H1REGS_OFFSET : USB_OTGREGS_OFFSET)  +
 						 UH1_USBCMD_OFFSET);
 	u32 val;
 
@@ -135,27 +153,34 @@ static int usbh1_phy_enable(void)
 	val |= (USBPHY_CTRL_ENUTMILEVEL2 | USBPHY_CTRL_ENUTMILEVEL3);
 	__raw_writel(val, phy_reg + USBPHY_CTRL);
 
+#ifndef CONFIG_MXC_USB_SWFIX
+#define HW_USBPHY_IP_SET	(0x00000094)
+	// apparently you don't do this on mx6q <= 1.1 or mx6d <= 1.0
+	__raw_writel((1 << 17), phy_reg + HW_USBPHY_IP_SET);
+#endif
+
 	return 0;
 }
 
-static void usbh1_oc_config(void)
+static void usb_oc_config(int port)
 {
 	void __iomem *usb_base = (void __iomem *)USBOH3_USB_BASE_ADDR;
-	void __iomem *usbother_base = usb_base + USB_OTHERREGS_OFFSET;
+	void __iomem *usbother = usb_base + USB_OTHERREGS_OFFSET +
+                            (port ? USB_H1_CTRL_OFFSET : USB_OTG_CTRL_OFFSET);
 	u32 val;
 
-	val = __raw_readl(usbother_base + USB_H1_CTRL_OFFSET);
+	val = __raw_readl(usbother);
 #if CONFIG_MACH_TYPE == MACH_TYPE_MX6Q_ARM2
 	/* mx6qarm2 seems to required a different setting*/
 	val &= ~UCTRL_OVER_CUR_POL;
 #else
 	val |= UCTRL_OVER_CUR_POL;
 #endif
-	__raw_writel(val, usbother_base + USB_H1_CTRL_OFFSET);
+	__raw_writel(val, usbother);
 
-	val = __raw_readl(usbother_base + USB_H1_CTRL_OFFSET);
+	val = __raw_readl(usbother);
 	val |= UCTRL_OVER_CUR_DIS;
-	__raw_writel(val, usbother_base + USB_H1_CTRL_OFFSET);
+	__raw_writel(val, usbother);
 }
 
 int __weak board_ehci_hcd_init(int port)
@@ -173,12 +198,12 @@ int ehci_hcd_init(int index, struct ehci_hccr **hccr, struct ehci_hcor **hcor)
 	/* Do board specific initialization */
 	board_ehci_hcd_init(CONFIG_MXC_USB_PORT);
 
-#if CONFIG_MXC_USB_PORT == 1
-	/* USB Host 1 */
-	usbh1_power_config();
-	usbh1_oc_config();
-	usbh1_internal_phy_clock_gate(1);
-	usbh1_phy_enable();
+#if CONFIG_MXC_USB_PORT == 0 || CONFIG_MXC_USB_PORT == 1
+	/* USB OTG or Host 1 */
+	usb_power_config(CONFIG_MXC_USB_PORT);
+	usb_oc_config(CONFIG_MXC_USB_PORT);
+	usb_internal_phy_clock_gate(CONFIG_MXC_USB_PORT, 1);
+	usb_phy_enable(CONFIG_MXC_USB_PORT);
 #else
 #error "MXC USB port not yet supported"
 #endif
